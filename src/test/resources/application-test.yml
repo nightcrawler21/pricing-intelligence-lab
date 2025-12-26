@@ -1,0 +1,24 @@
+# ============================================================================
+# Pricing Intelligence Lab - Test Configuration
+# ============================================================================
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:pricing_lab_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    root: WARN
+    com.example.pricinglab: INFO

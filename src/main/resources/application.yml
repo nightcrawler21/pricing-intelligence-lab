@@ -1,0 +1,79 @@
+# ============================================================================
+# Pricing Intelligence Lab - Main Configuration
+# ============================================================================
+# This is the base configuration. Profile-specific settings override these.
+# Use -Dspring.profiles.active=local for local development.
+# ============================================================================
+
+spring:
+  application:
+    name: pricing-intelligence-lab
+
+  # Database Configuration (PostgreSQL for production)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pricing_lab
+    username: ${DB_USERNAME:pricing_lab}
+    password: ${DB_PASSWORD:pricing_lab}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Use Flyway for schema management
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    open-in-view: false  # Disable OSIV for better performance
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.example.pricinglab: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
