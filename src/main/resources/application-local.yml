@@ -1,0 +1,46 @@
+# ============================================================================
+# Pricing Intelligence Lab - Local Development Configuration
+# ============================================================================
+# Activate with: -Dspring.profiles.active=local
+# Uses H2 in-memory database for easy local development.
+# ============================================================================
+
+spring:
+  # H2 Database for local development
+  datasource:
+    url: jdbc:h2:mem:pricing_lab;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  # Enable H2 Console
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+  # JPA Configuration for local development
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# Server Configuration
+server:
+  port: 8080
+
+# Logging - more verbose for development
+logging:
+  level:
+    com.example.pricinglab: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
