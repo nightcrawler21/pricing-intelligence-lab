@@ -52,6 +52,22 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(InvalidExperimentStateException.class)
+    public ProblemDetail handleInvalidExperimentState(InvalidExperimentStateException ex) {
+        log.warn("Invalid experiment state for action: {}", ex.getMessage());
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.BAD_REQUEST,
+            ex.getMessage()
+        );
+        problem.setTitle("Invalid Experiment State");
+        problem.setProperty("currentStatus", ex.getCurrentStatus());
+        problem.setProperty("attemptedAction", ex.getAttemptedAction());
+        problem.setProperty("allowedStatuses", ex.getAllowedStatuses());
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
     @ExceptionHandler(GuardrailViolationException.class)
     public ProblemDetail handleGuardrailViolation(GuardrailViolationException ex) {
         log.warn("Guardrail violation: {}", ex.getMessage());

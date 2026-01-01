@@ -1,11 +1,13 @@
 package com.example.pricinglab.simulation.service;
 
+import com.example.pricinglab.audit.AuditService;
+import com.example.pricinglab.common.enums.AuditAction;
 import com.example.pricinglab.common.enums.ExperimentStatus;
 import com.example.pricinglab.common.enums.SimulationStatus;
-import com.example.pricinglab.common.exception.InvalidStateTransitionException;
 import com.example.pricinglab.common.exception.ResourceNotFoundException;
 import com.example.pricinglab.experiment.domain.Experiment;
 import com.example.pricinglab.experiment.repository.ExperimentRepository;
+import com.example.pricinglab.experiment.service.ExperimentLifecycleValidator;
 import com.example.pricinglab.simulation.domain.SimulationRun;
 import com.example.pricinglab.simulation.repository.SimulationRunRepository;
 import org.slf4j.Logger;
@@ -33,13 +35,18 @@ public class SimulationService {
 
     private final SimulationRunRepository simulationRunRepository;
     private final ExperimentRepository experimentRepository;
+    private final ExperimentLifecycleValidator lifecycleValidator;
+    private final AuditService auditService;
 
     public SimulationService(
-        SimulationRunRepository simulationRunRepository,
-        ExperimentRepository experimentRepository
-    ) {
+            SimulationRunRepository simulationRunRepository,
+            ExperimentRepository experimentRepository,
+            ExperimentLifecycleValidator lifecycleValidator,
+            AuditService auditService) {
         this.simulationRunRepository = simulationRunRepository;
         this.experimentRepository = experimentRepository;
+        this.lifecycleValidator = lifecycleValidator;
+        this.auditService = auditService;
     }
 
     /**
@@ -49,14 +56,12 @@ public class SimulationService {
      * @return the created simulation run
      */
     public SimulationRun startSimulation(UUID experimentId) {
-        log.info("Starting simulation for experiment: {}", experimentId);
-
         Experiment experiment = experimentRepository.findById(experimentId)
             .orElseThrow(() -> new ResourceNotFoundException("Experiment", experimentId.toString()));
 
-        if (experiment.getStatus() != ExperimentStatus.APPROVED) {
-            throw new InvalidStateTransitionException(experiment.getStatus(), ExperimentStatus.RUNNING);
-        }
+        lifecycleValidator.validateCanStartSimulation(experiment);
+
+        ExperimentStatus previousStatus = experiment.getStatus();
 
         // Update experiment status
         experiment.setStatus(ExperimentStatus.RUNNING);
@@ -69,11 +74,20 @@ public class SimulationService {
 
         run = simulationRunRepository.save(run);
 
+        log.info("Simulation run {} started for experiment {} (status: {} → {})",
+                run.getId(), experimentId, previousStatus, ExperimentStatus.RUNNING);
+
+        auditService.logAction(
+                "Experiment",
+                experimentId,
+                AuditAction.SIMULATION_STARTED,
+                String.format("Simulation run %s started. Status changed from %s to %s",
+                        run.getId(), previousStatus, ExperimentStatus.RUNNING)
+        );
+
         // TODO: Trigger actual simulation logic asynchronously
         // For v0, we'll just create the run record
         // In future versions, this would queue the simulation for background processing
-
-        log.info("Simulation run {} created for experiment {}", run.getId(), experimentId);
 
         return run;
     }
@@ -104,37 +118,76 @@ public class SimulationService {
     /**
      * Completes a simulation run with results.
      * This would be called by the simulation engine after processing.
+     * Also transitions the experiment from RUNNING to COMPLETED.
      *
      * @param runId the simulation run ID
      */
     public void completeSimulation(UUID runId) {
-        // TODO: Implement simulation completion logic
-
         SimulationRun run = getSimulationRun(runId);
+        Experiment experiment = run.getExperiment();
+
+        lifecycleValidator.validateCanComplete(experiment);
+
+        ExperimentStatus previousStatus = experiment.getStatus();
+
+        // Update simulation run
         run.setStatus(SimulationStatus.COMPLETED);
         run.setCompletedAt(Instant.now());
+        simulationRunRepository.save(run);
+
+        // Update experiment status
+        experiment.setStatus(ExperimentStatus.COMPLETED);
+        experimentRepository.save(experiment);
+
+        log.info("Simulation run {} completed. Experiment {} status: {} → {}",
+                runId, experiment.getId(), previousStatus, ExperimentStatus.COMPLETED);
+
+        auditService.logAction(
+                "Experiment",
+                experiment.getId(),
+                AuditAction.SIMULATION_COMPLETED,
+                String.format("Simulation run %s completed. Status changed from %s to %s",
+                        runId, previousStatus, ExperimentStatus.COMPLETED)
+        );
 
         // TODO: Calculate summary metrics from daily results
-        // TODO: Update experiment status to COMPLETED if this is the final run
-
-        simulationRunRepository.save(run);
-        log.info("Simulation run {} completed", runId);
     }
 
     /**
      * Marks a simulation run as failed.
+     * Also transitions the experiment from RUNNING to FAILED.
      *
      * @param runId the simulation run ID
      * @param errorMessage the error message
      */
     public void failSimulation(UUID runId, String errorMessage) {
         SimulationRun run = getSimulationRun(runId);
+        Experiment experiment = run.getExperiment();
+
+        lifecycleValidator.validateCanFail(experiment);
+
+        ExperimentStatus previousStatus = experiment.getStatus();
+
+        // Update simulation run
         run.setStatus(SimulationStatus.FAILED);
         run.setCompletedAt(Instant.now());
         run.setErrorMessage(errorMessage);
-
         simulationRunRepository.save(run);
-        log.error("Simulation run {} failed: {}", runId, errorMessage);
+
+        // Update experiment status
+        experiment.setStatus(ExperimentStatus.FAILED);
+        experimentRepository.save(experiment);
+
+        log.error("Simulation run {} failed: {}. Experiment {} status: {} → {}",
+                runId, errorMessage, experiment.getId(), previousStatus, ExperimentStatus.FAILED);
+
+        auditService.logAction(
+                "Experiment",
+                experiment.getId(),
+                AuditAction.SIMULATION_FAILED,
+                String.format("Simulation run %s failed: %s. Status changed from %s to %s",
+                        runId, errorMessage, previousStatus, ExperimentStatus.FAILED)
+        );
     }
 
     /**
