@@ -6,7 +6,10 @@ import com.example.pricinglab.experiment.dto.CreateExperimentRequest;
 import com.example.pricinglab.experiment.dto.ExperimentDetailResponse;
 import com.example.pricinglab.experiment.dto.ExperimentMapper;
 import com.example.pricinglab.experiment.dto.ExperimentResponse;
+import com.example.pricinglab.experiment.dto.ModifyScopeRequest;
+import com.example.pricinglab.experiment.dto.ScopeListResponse;
 import com.example.pricinglab.experiment.service.ExperimentApprovalService;
+import com.example.pricinglab.experiment.service.ExperimentScopeService;
 import com.example.pricinglab.experiment.service.ExperimentService;
 import com.example.pricinglab.simulation.service.SimulationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,17 +49,20 @@ public class ExperimentController {
 
     private final ExperimentService experimentService;
     private final ExperimentApprovalService approvalService;
+    private final ExperimentScopeService scopeService;
     private final SimulationService simulationService;
     private final ExperimentMapper mapper;
 
     public ExperimentController(
         ExperimentService experimentService,
         ExperimentApprovalService approvalService,
+        ExperimentScopeService scopeService,
         SimulationService simulationService,
         ExperimentMapper mapper
     ) {
         this.experimentService = experimentService;
         this.approvalService = approvalService;
+        this.scopeService = scopeService;
         this.simulationService = simulationService;
         this.mapper = mapper;
     }
@@ -148,5 +155,45 @@ public class ExperimentController {
         log.info("Starting simulation for experiment {}", id);
         simulationService.startSimulation(id);
         return ResponseEntity.accepted().build();
+    }
+
+    // --- Scope Management Endpoints ---
+
+    @PostMapping("/{id}/scope")
+    @Operation(summary = "Add scope entries to experiment",
+        description = "Adds store-SKU pairs to the experiment scope. Only allowed when experiment is in DRAFT status. " +
+                      "Duplicates (both within request and against existing entries) are rejected with HTTP 400.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Scope entries added successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request: duplicate entries, invalid state, or validation error"),
+        @ApiResponse(responseCode = "404", description = "Experiment, Store, or SKU not found")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<ScopeListResponse> addScopeEntries(
+        @PathVariable UUID id,
+        @Valid @RequestBody ModifyScopeRequest request
+    ) {
+        log.info("Adding {} scope entries to experiment {}", request.entries().size(), id);
+        ScopeListResponse response = scopeService.addScopeEntries(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/scope")
+    @Operation(summary = "Remove scope entries from experiment",
+        description = "Removes store-SKU pairs from the experiment scope. Only allowed when experiment is in DRAFT status. " +
+                      "Entries that do not exist are silently ignored (bulk delete convenience).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Scope entries removed successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid experiment state (not DRAFT)"),
+        @ApiResponse(responseCode = "404", description = "Experiment not found")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<ScopeListResponse> removeScopeEntries(
+        @PathVariable UUID id,
+        @Valid @RequestBody ModifyScopeRequest request
+    ) {
+        log.info("Removing {} scope entries from experiment {}", request.entries().size(), id);
+        ScopeListResponse response = scopeService.removeScopeEntries(id, request);
+        return ResponseEntity.ok(response);
     }
 }

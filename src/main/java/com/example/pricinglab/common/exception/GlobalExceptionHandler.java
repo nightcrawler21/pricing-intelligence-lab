@@ -83,6 +83,20 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(DuplicateScopeException.class)
+    public ProblemDetail handleDuplicateScope(DuplicateScopeException ex) {
+        log.warn("Duplicate scope entries: {}", ex.getMessage());
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.BAD_REQUEST,
+            ex.getMessage()
+        );
+        problem.setTitle("Duplicate Scope Entries");
+        problem.setProperty("duplicateEntries", ex.getDuplicateEntries());
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         String errors = ex.getBindingResult().getFieldErrors().stream()

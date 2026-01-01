@@ -72,6 +72,7 @@ public class InvalidExperimentStateException extends RuntimeException {
             case "start simulation" -> "started";
             case "complete simulation" -> "completed";
             case "fail simulation" -> "marked as failed";
+            case "modify scope" -> "modified";
             default -> action + "ed";
         };
     }

@@ -21,5 +21,9 @@ public enum AuditAction {
     GUARDRAILS_UPDATED,
     SCOPE_UPDATED,
     LEVER_ADDED,
-    LEVER_REMOVED
+    LEVER_REMOVED,
+
+    // Scope management
+    EXPERIMENT_SCOPE_ADDED,
+    EXPERIMENT_SCOPE_REMOVED
 }
