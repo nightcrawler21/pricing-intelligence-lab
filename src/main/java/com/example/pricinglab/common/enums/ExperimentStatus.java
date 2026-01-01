@@ -3,10 +3,17 @@ package com.example.pricinglab.common.enums;
 /**
  * Represents the lifecycle status of a pricing experiment.
  *
- * Experiment workflow:
- * DRAFT -> PENDING_APPROVAL -> APPROVED -> RUNNING -> COMPLETED
- *                           -> REJECTED (terminal)
- *                                      -> CANCELLED (from any active state)
+ * <p>Allowed state transitions:</p>
+ * <ul>
+ *   <li>DRAFT → PENDING_APPROVAL (via submit)</li>
+ *   <li>PENDING_APPROVAL → APPROVED (via approve)</li>
+ *   <li>PENDING_APPROVAL → REJECTED (via reject)</li>
+ *   <li>APPROVED → RUNNING (via run simulation)</li>
+ *   <li>RUNNING → COMPLETED (via complete simulation)</li>
+ *   <li>RUNNING → FAILED (via fail simulation)</li>
+ * </ul>
+ *
+ * <p>Terminal states: COMPLETED, FAILED, REJECTED</p>
  */
 public enum ExperimentStatus {
 
@@ -31,17 +38,17 @@ public enum ExperimentStatus {
     RUNNING,
 
     /**
-     * Experiment simulation has completed. Results are available.
+     * Experiment simulation has completed successfully. Results are available.
      */
     COMPLETED,
 
     /**
-     * Experiment was rejected by admin. Terminal state.
+     * Experiment simulation failed. Terminal state.
      */
-    REJECTED,
+    FAILED,
 
     /**
-     * Experiment was cancelled. Terminal state.
+     * Experiment was rejected by admin. Terminal state.
      */
-    CANCELLED
+    REJECTED
 }

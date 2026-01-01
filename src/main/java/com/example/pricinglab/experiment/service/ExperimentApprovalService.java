@@ -1,7 +1,8 @@
 package com.example.pricinglab.experiment.service;
 
+import com.example.pricinglab.audit.AuditService;
+import com.example.pricinglab.common.enums.AuditAction;
 import com.example.pricinglab.common.enums.ExperimentStatus;
-import com.example.pricinglab.common.exception.InvalidStateTransitionException;
 import com.example.pricinglab.common.exception.ResourceNotFoundException;
 import com.example.pricinglab.experiment.domain.Experiment;
 import com.example.pricinglab.experiment.dto.ApprovalRequest;
@@ -30,9 +31,16 @@ public class ExperimentApprovalService {
     private static final Logger log = LoggerFactory.getLogger(ExperimentApprovalService.class);
 
     private final ExperimentRepository experimentRepository;
+    private final ExperimentLifecycleValidator lifecycleValidator;
+    private final AuditService auditService;
 
-    public ExperimentApprovalService(ExperimentRepository experimentRepository) {
+    public ExperimentApprovalService(
+            ExperimentRepository experimentRepository,
+            ExperimentLifecycleValidator lifecycleValidator,
+            AuditService auditService) {
         this.experimentRepository = experimentRepository;
+        this.lifecycleValidator = lifecycleValidator;
+        this.auditService = auditService;
     }
 
     /**
@@ -44,24 +52,33 @@ public class ExperimentApprovalService {
      */
     @PreAuthorize("hasRole('ADMIN')")
     public Experiment approveExperiment(UUID experimentId) {
-        log.info("Approving experiment: {}", experimentId);
-
         Experiment experiment = experimentRepository.findById(experimentId)
             .orElseThrow(() -> new ResourceNotFoundException("Experiment", experimentId.toString()));
 
-        if (experiment.getStatus() != ExperimentStatus.PENDING_APPROVAL) {
-            throw new InvalidStateTransitionException(experiment.getStatus(), ExperimentStatus.APPROVED);
-        }
+        lifecycleValidator.validateCanApprove(experiment);
 
         // TODO: Perform final validation of guardrails
         // TODO: Check for overlapping experiments on same store-SKU combinations
-        // TODO: Create audit log entry
 
+        ExperimentStatus previousStatus = experiment.getStatus();
         String approver = SecurityContextHolder.getContext().getAuthentication().getName();
         experiment.setApprovedBy(approver);
         experiment.setStatus(ExperimentStatus.APPROVED);
 
-        return experimentRepository.save(experiment);
+        Experiment saved = experimentRepository.save(experiment);
+
+        log.info("Experiment {} approved by {} (status: {} → {})",
+                experimentId, approver, previousStatus, ExperimentStatus.APPROVED);
+
+        auditService.logAction(
+                "Experiment",
+                experimentId,
+                AuditAction.EXPERIMENT_APPROVED,
+                String.format("Approved by %s. Status changed from %s to %s",
+                        approver, previousStatus, ExperimentStatus.APPROVED)
+        );
+
+        return saved;
     }
 
     /**
@@ -74,23 +91,31 @@ public class ExperimentApprovalService {
      */
     @PreAuthorize("hasRole('ADMIN')")
     public Experiment rejectExperiment(UUID experimentId, ApprovalRequest request) {
-        log.info("Rejecting experiment: {}", experimentId);
-
         Experiment experiment = experimentRepository.findById(experimentId)
             .orElseThrow(() -> new ResourceNotFoundException("Experiment", experimentId.toString()));
 
-        if (experiment.getStatus() != ExperimentStatus.PENDING_APPROVAL) {
-            throw new InvalidStateTransitionException(experiment.getStatus(), ExperimentStatus.REJECTED);
-        }
+        lifecycleValidator.validateCanReject(experiment);
 
-        // TODO: Create audit log entry
-
+        ExperimentStatus previousStatus = experiment.getStatus();
         String approver = SecurityContextHolder.getContext().getAuthentication().getName();
         experiment.setApprovedBy(approver);
         experiment.setRejectionReason(request.rejectionReason());
         experiment.setStatus(ExperimentStatus.REJECTED);
 
-        return experimentRepository.save(experiment);
+        Experiment saved = experimentRepository.save(experiment);
+
+        log.info("Experiment {} rejected by {} (status: {} → {}). Reason: {}",
+                experimentId, approver, previousStatus, ExperimentStatus.REJECTED, request.rejectionReason());
+
+        auditService.logAction(
+                "Experiment",
+                experimentId,
+                AuditAction.EXPERIMENT_REJECTED,
+                String.format("Rejected by %s. Reason: %s. Status changed from %s to %s",
+                        approver, request.rejectionReason(), previousStatus, ExperimentStatus.REJECTED)
+        );
+
+        return saved;
     }
 
     /**

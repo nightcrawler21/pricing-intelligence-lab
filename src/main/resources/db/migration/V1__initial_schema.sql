@@ -101,7 +101,7 @@ CREATE TABLE experiments (
     created_by              VARCHAR(100),
     updated_at              TIMESTAMP,
     updated_by              VARCHAR(100),
-    CONSTRAINT chk_experiment_status CHECK (status IN ('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'RUNNING', 'COMPLETED', 'REJECTED', 'CANCELLED')),
+    CONSTRAINT chk_experiment_status CHECK (status IN ('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'RUNNING', 'COMPLETED', 'FAILED', 'REJECTED')),
     CONSTRAINT chk_experiment_dates CHECK (end_date >= start_date)
 );
 

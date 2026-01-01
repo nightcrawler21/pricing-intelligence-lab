@@ -1,7 +1,9 @@
 package com.example.pricinglab.experiment.service;
 
+import com.example.pricinglab.audit.AuditService;
+import com.example.pricinglab.common.enums.AuditAction;
 import com.example.pricinglab.common.enums.ExperimentStatus;
-import com.example.pricinglab.common.exception.InvalidStateTransitionException;
+import com.example.pricinglab.common.exception.InvalidExperimentStateException;
 import com.example.pricinglab.common.exception.ResourceNotFoundException;
 import com.example.pricinglab.experiment.domain.Experiment;
 import com.example.pricinglab.experiment.dto.CreateExperimentRequest;
@@ -27,9 +29,16 @@ public class ExperimentService {
     private static final Logger log = LoggerFactory.getLogger(ExperimentService.class);
 
     private final ExperimentRepository experimentRepository;
+    private final ExperimentLifecycleValidator lifecycleValidator;
+    private final AuditService auditService;
 
-    public ExperimentService(ExperimentRepository experimentRepository) {
+    public ExperimentService(
+            ExperimentRepository experimentRepository,
+            ExperimentLifecycleValidator lifecycleValidator,
+            AuditService auditService) {
         this.experimentRepository = experimentRepository;
+        this.lifecycleValidator = lifecycleValidator;
+        this.auditService = auditService;
     }
 
     /**
@@ -99,44 +108,33 @@ public class ExperimentService {
      *
      * @param id the experiment ID
      * @return the updated experiment
-     * @throws InvalidStateTransitionException if experiment is not in DRAFT status
+     * @throws InvalidExperimentStateException if experiment is not in DRAFT status
      */
     public Experiment submitForApproval(UUID id) {
         Experiment experiment = getExperiment(id);
 
-        if (experiment.getStatus() != ExperimentStatus.DRAFT) {
-            throw new InvalidStateTransitionException(experiment.getStatus(), ExperimentStatus.PENDING_APPROVAL);
-        }
+        lifecycleValidator.validateCanSubmit(experiment);
 
         // TODO: Validate experiment has required scope (at least one store-SKU pair)
         // TODO: Validate experiment has at least one lever defined
         // TODO: Validate experiment has guardrails configured
         // TODO: Validate all levers comply with guardrails
 
-        log.info("Submitting experiment {} for approval", id);
+        ExperimentStatus previousStatus = experiment.getStatus();
         experiment.setStatus(ExperimentStatus.PENDING_APPROVAL);
-        return experimentRepository.save(experiment);
-    }
+        Experiment saved = experimentRepository.save(experiment);
 
-    /**
-     * Cancels an experiment.
-     *
-     * @param id the experiment ID
-     * @return the updated experiment
-     * @throws InvalidStateTransitionException if experiment is in terminal state
-     */
-    public Experiment cancelExperiment(UUID id) {
-        Experiment experiment = getExperiment(id);
+        log.info("Experiment {} submitted for approval (status: {} → {})",
+                id, previousStatus, ExperimentStatus.PENDING_APPROVAL);
 
-        if (experiment.getStatus() == ExperimentStatus.COMPLETED ||
-            experiment.getStatus() == ExperimentStatus.CANCELLED ||
-            experiment.getStatus() == ExperimentStatus.REJECTED) {
-            throw new InvalidStateTransitionException(experiment.getStatus(), ExperimentStatus.CANCELLED);
-        }
+        auditService.logAction(
+                "Experiment",
+                id,
+                AuditAction.EXPERIMENT_SUBMITTED,
+                String.format("Status changed from %s to %s", previousStatus, ExperimentStatus.PENDING_APPROVAL)
+        );
 
-        log.info("Cancelling experiment {}", id);
-        experiment.setStatus(ExperimentStatus.CANCELLED);
-        return experimentRepository.save(experiment);
+        return saved;
     }
 
     /**
@@ -146,17 +144,20 @@ public class ExperimentService {
      * @param id the experiment ID
      * @param request the update request
      * @return the updated experiment
+     * @throws InvalidExperimentStateException if experiment is not in DRAFT status
      */
     public Experiment updateExperiment(UUID id, CreateExperimentRequest request) {
         Experiment experiment = getExperiment(id);
 
         if (experiment.getStatus() != ExperimentStatus.DRAFT) {
-            // TODO: Consider allowing updates to description/justification in PENDING_APPROVAL
-            throw new InvalidStateTransitionException(experiment.getStatus(), ExperimentStatus.DRAFT);
+            throw new InvalidExperimentStateException(
+                    experiment.getStatus(),
+                    "update",
+                    ExperimentStatus.DRAFT
+            );
         }
 
         // TODO: Validate end date is after start date
-        // TODO: Audit log the changes
 
         experiment.setName(request.name());
         experiment.setDescription(request.description());
@@ -165,6 +166,15 @@ public class ExperimentService {
         experiment.setBusinessJustification(request.businessJustification());
         experiment.setHypothesis(request.hypothesis());
 
-        return experimentRepository.save(experiment);
+        Experiment saved = experimentRepository.save(experiment);
+
+        auditService.logAction(
+                "Experiment",
+                id,
+                AuditAction.EXPERIMENT_UPDATED,
+                "Experiment details updated"
+        );
+
+        return saved;
     }
 }

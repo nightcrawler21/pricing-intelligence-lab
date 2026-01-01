@@ -11,7 +11,6 @@ public enum AuditAction {
     EXPERIMENT_SUBMITTED,
     EXPERIMENT_APPROVED,
     EXPERIMENT_REJECTED,
-    EXPERIMENT_CANCELLED,
 
     // Simulation lifecycle
     SIMULATION_STARTED,
