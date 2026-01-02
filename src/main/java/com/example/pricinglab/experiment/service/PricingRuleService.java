@@ -37,6 +37,13 @@ public class PricingRuleService {
         // TODO: Implement price calculation logic
 
         return switch (lever.getLeverType()) {
+            case PRICE_DISCOUNT -> {
+                // Apply discount percentage (e.g., 10.0 = 10% off)
+                BigDecimal discountMultiplier = BigDecimal.ONE.subtract(
+                    lever.getLeverValue().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                );
+                yield basePrice.multiply(discountMultiplier).setScale(2, RoundingMode.HALF_UP);
+            }
             case PERCENTAGE_CHANGE -> {
                 // Apply percentage change (negative = discount, positive = markup)
                 BigDecimal multiplier = BigDecimal.ONE.add(
