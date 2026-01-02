@@ -17,6 +17,8 @@ import com.example.pricinglab.experiment.service.ExperimentGuardrailsService;
 import com.example.pricinglab.experiment.service.ExperimentLeverService;
 import com.example.pricinglab.experiment.service.ExperimentScopeService;
 import com.example.pricinglab.experiment.service.ExperimentService;
+import com.example.pricinglab.simulation.dto.SimulationRunResponse;
+import com.example.pricinglab.simulation.service.SimulationRunnerService;
 import com.example.pricinglab.simulation.service.SimulationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -60,6 +62,7 @@ public class ExperimentController {
     private final ExperimentLeverService leverService;
     private final ExperimentGuardrailsService guardrailsService;
     private final SimulationService simulationService;
+    private final SimulationRunnerService simulationRunnerService;
     private final ExperimentMapper mapper;
 
     public ExperimentController(
@@ -69,6 +72,7 @@ public class ExperimentController {
         ExperimentLeverService leverService,
         ExperimentGuardrailsService guardrailsService,
         SimulationService simulationService,
+        SimulationRunnerService simulationRunnerService,
         ExperimentMapper mapper
     ) {
         this.experimentService = experimentService;
@@ -77,6 +81,7 @@ public class ExperimentController {
         this.leverService = leverService;
         this.guardrailsService = guardrailsService;
         this.simulationService = simulationService;
+        this.simulationRunnerService = simulationRunnerService;
         this.mapper = mapper;
     }
 
@@ -284,5 +289,24 @@ public class ExperimentController {
         log.info("Removing guardrails from experiment {}", id);
         guardrailsService.removeGuardrails(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // --- Simulation Endpoints ---
+
+    @PostMapping("/{id}/simulate")
+    @Operation(summary = "Run simulation for experiment",
+        description = "Runs a complete, synchronous simulation for an APPROVED experiment. " +
+                      "Generates daily results for each store-SKU pair comparing CONTROL vs TEST variants. " +
+                      "v0 supports only PRICE_DISCOUNT lever type.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Simulation completed successfully"),
+        @ApiResponse(responseCode = "400", description = "Experiment not in APPROVED status or missing required data"),
+        @ApiResponse(responseCode = "404", description = "Experiment not found")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<SimulationRunResponse> simulate(@PathVariable UUID id) {
+        log.info("Running simulation for experiment {}", id);
+        SimulationRunResponse response = simulationRunnerService.runSimulation(id);
+        return ResponseEntity.ok(response);
     }
 }

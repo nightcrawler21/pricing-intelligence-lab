@@ -16,6 +16,7 @@ public enum AuditAction {
     SIMULATION_STARTED,
     SIMULATION_COMPLETED,
     SIMULATION_FAILED,
+    EXPERIMENT_SIMULATION_RUN,
 
     // Data modifications
     GUARDRAILS_UPDATED,
