@@ -36,13 +36,28 @@ import java.util.UUID;
 /**
  * Service for managing experiment guardrails.
  *
- * v0 guardrails enforce:
- * - priceFloor: minimum allowed resulting price
- * - priceCeiling: maximum allowed resulting price
- * - maxChangePercent: maximum allowed absolute % change from base price
+ * <h2>v0 Guardrails</h2>
+ * <ul>
+ *   <li>{@code priceFloor}: minimum allowed resulting price</li>
+ *   <li>{@code priceCeiling}: maximum allowed resulting price</li>
+ *   <li>{@code maxChangePercent}: maximum allowed absolute % change from base price</li>
+ * </ul>
  *
- * Guardrails are only editable when experiment is in DRAFT status.
- * Guardrails must exist and be valid before experiment can be submitted.
+ * <p>Guardrails are only editable when experiment is in DRAFT status.
+ * Guardrails must exist and be valid before experiment can be submitted.</p>
+ *
+ * <h2>Validation Timing (Important)</h2>
+ * <p>Guardrails are validated at <b>submit time</b> against <b>current effective base prices</b>
+ * (i.e., prices effective as of {@code LocalDate.now()} at the moment of submission).
+ * This means:</p>
+ * <ul>
+ *   <li>Validation does NOT use historical prices from before the experiment was created</li>
+ *   <li>Validation does NOT use future-dated prices that may become effective during the experiment</li>
+ *   <li>If base prices change between submit and simulation, the guardrail check at submit time
+ *       may not reflect actual simulation prices</li>
+ * </ul>
+ * <p>This is intentional for v0 simplicity. Future versions may validate against the
+ * experiment's date range or re-validate at simulation time.</p>
  */
 @Service
 @Transactional
