@@ -6,11 +6,14 @@ import com.example.pricinglab.experiment.dto.CreateExperimentRequest;
 import com.example.pricinglab.experiment.dto.ExperimentDetailResponse;
 import com.example.pricinglab.experiment.dto.ExperimentMapper;
 import com.example.pricinglab.experiment.dto.ExperimentResponse;
+import com.example.pricinglab.experiment.dto.GuardrailsRequest;
+import com.example.pricinglab.experiment.dto.GuardrailsResponse;
 import com.example.pricinglab.experiment.dto.LeverRequest;
 import com.example.pricinglab.experiment.dto.LeverResponse;
 import com.example.pricinglab.experiment.dto.ModifyScopeRequest;
 import com.example.pricinglab.experiment.dto.ScopeListResponse;
 import com.example.pricinglab.experiment.service.ExperimentApprovalService;
+import com.example.pricinglab.experiment.service.ExperimentGuardrailsService;
 import com.example.pricinglab.experiment.service.ExperimentLeverService;
 import com.example.pricinglab.experiment.service.ExperimentScopeService;
 import com.example.pricinglab.experiment.service.ExperimentService;
@@ -55,6 +58,7 @@ public class ExperimentController {
     private final ExperimentApprovalService approvalService;
     private final ExperimentScopeService scopeService;
     private final ExperimentLeverService leverService;
+    private final ExperimentGuardrailsService guardrailsService;
     private final SimulationService simulationService;
     private final ExperimentMapper mapper;
 
@@ -63,6 +67,7 @@ public class ExperimentController {
         ExperimentApprovalService approvalService,
         ExperimentScopeService scopeService,
         ExperimentLeverService leverService,
+        ExperimentGuardrailsService guardrailsService,
         SimulationService simulationService,
         ExperimentMapper mapper
     ) {
@@ -70,6 +75,7 @@ public class ExperimentController {
         this.approvalService = approvalService;
         this.scopeService = scopeService;
         this.leverService = leverService;
+        this.guardrailsService = guardrailsService;
         this.simulationService = simulationService;
         this.mapper = mapper;
     }
@@ -239,6 +245,44 @@ public class ExperimentController {
     public ResponseEntity<Void> removeLever(@PathVariable UUID id) {
         log.info("Removing lever from experiment {}", id);
         leverService.removeLever(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Guardrails Management Endpoints ---
+
+    @PutMapping("/{id}/guardrails")
+    @Operation(summary = "Configure experiment guardrails",
+        description = "Sets or replaces the guardrails for an experiment. Only allowed when experiment is in DRAFT status. " +
+                      "v0 guardrails enforce priceFloor, priceCeiling, and maxChangePercent constraints. " +
+                      "If a lever is configured, guardrails are validated against the lever-implied price.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Guardrails configured successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request: validation failed, lever inconsistency, or experiment not in DRAFT"),
+        @ApiResponse(responseCode = "404", description = "Experiment not found")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<GuardrailsResponse> configureGuardrails(
+        @PathVariable UUID id,
+        @Valid @RequestBody GuardrailsRequest request
+    ) {
+        log.info("Configuring guardrails for experiment {}: floor={}, ceiling={}, maxChange={}%",
+                id, request.priceFloor(), request.priceCeiling(), request.maxChangePercent());
+        GuardrailsResponse response = guardrailsService.configureGuardrails(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/guardrails")
+    @Operation(summary = "Remove experiment guardrails",
+        description = "Removes the guardrails from an experiment. Only allowed when experiment is in DRAFT status.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Guardrails removed successfully"),
+        @ApiResponse(responseCode = "400", description = "Experiment not in DRAFT status"),
+        @ApiResponse(responseCode = "404", description = "Experiment not found or no guardrails exist")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<Void> removeGuardrails(@PathVariable UUID id) {
+        log.info("Removing guardrails from experiment {}", id);
+        guardrailsService.removeGuardrails(id);
         return ResponseEntity.noContent().build();
     }
 }

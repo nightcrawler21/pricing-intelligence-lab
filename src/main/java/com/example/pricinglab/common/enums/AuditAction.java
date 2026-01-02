@@ -29,5 +29,9 @@ public enum AuditAction {
 
     // Lever management
     EXPERIMENT_LEVER_SET,
-    EXPERIMENT_LEVER_REMOVED
+    EXPERIMENT_LEVER_REMOVED,
+
+    // Guardrails management
+    EXPERIMENT_GUARDRAILS_SET,
+    EXPERIMENT_GUARDRAILS_REMOVED
 }

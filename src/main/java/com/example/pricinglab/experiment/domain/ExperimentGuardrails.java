@@ -87,6 +87,29 @@ public class ExperimentGuardrails extends BaseAuditableEntity {
     @Column(name = "enforce_price_points", nullable = false)
     private boolean enforcePricePoints = false;
 
+    // --- v0 Guardrail Fields ---
+
+    /**
+     * v0: Minimum allowed resulting price in THB.
+     * The lever-implied price must be >= this value.
+     */
+    @Column(name = "price_floor", precision = 12, scale = 2)
+    private BigDecimal priceFloor;
+
+    /**
+     * v0: Maximum allowed resulting price in THB.
+     * The lever-implied price must be <= this value.
+     */
+    @Column(name = "price_ceiling", precision = 12, scale = 2)
+    private BigDecimal priceCeiling;
+
+    /**
+     * v0: Maximum allowed absolute percentage change from base price.
+     * Example: 20.0 means price can change at most 20% from base.
+     */
+    @Column(name = "max_change_percent", precision = 5, scale = 2)
+    private BigDecimal maxChangePercent;
+
     protected ExperimentGuardrails() {
         // JPA
     }
@@ -160,6 +183,32 @@ public class ExperimentGuardrails extends BaseAuditableEntity {
 
     public void setEnforcePricePoints(boolean enforcePricePoints) {
         this.enforcePricePoints = enforcePricePoints;
+    }
+
+    // --- v0 Getters and Setters ---
+
+    public BigDecimal getPriceFloor() {
+        return priceFloor;
+    }
+
+    public void setPriceFloor(BigDecimal priceFloor) {
+        this.priceFloor = priceFloor;
+    }
+
+    public BigDecimal getPriceCeiling() {
+        return priceCeiling;
+    }
+
+    public void setPriceCeiling(BigDecimal priceCeiling) {
+        this.priceCeiling = priceCeiling;
+    }
+
+    public BigDecimal getMaxChangePercent() {
+        return maxChangePercent;
+    }
+
+    public void setMaxChangePercent(BigDecimal maxChangePercent) {
+        this.maxChangePercent = maxChangePercent;
     }
 
     @Override
