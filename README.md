@@ -174,6 +174,18 @@ For local development, the sample data loads automatically with Flyway. For prod
 | POST | /api/experiments/{id}/submit | Submit for approval |
 | POST | /api/experiments/{id}/approve | Approve/reject (ADMIN only) |
 | POST | /api/experiments/{id}/run-simulation | Start simulation |
+| POST | /api/experiments/{id}/simulate | Run synchronous simulation (v0) |
+
+### Simulation Results
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/experiments/{experimentId}/simulation-runs | List runs for experiment |
+| GET | /api/simulation-runs/{runId}/status | Get run status |
+| GET | /api/simulation-runs/{runId}/summary | Get summary metrics |
+| GET | /api/simulation-runs/{runId}/timeseries | Get timeseries data |
+| GET | /api/simulation-runs/{runId}/breakdown | Get breakdown by dimension |
+| GET | /api/simulation-runs/{runId}/export.csv | Download CSV export |
 
 ### Experiment Workflow
 
@@ -221,6 +233,79 @@ Current implementation uses in-memory authentication for prototype phase. Produc
 - Use meaningful variable and method names
 - Add Javadoc for public APIs
 - Keep methods focused and small
+
+## Simulation Results API Examples
+
+After running a simulation, use these endpoints to retrieve results.
+
+### List simulation runs for an experiment
+
+```bash
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/experiments/{experimentId}/simulation-runs?limit=10"
+```
+
+### Get simulation run status
+
+```bash
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/status"
+```
+
+### Get summary metrics (control vs test)
+
+```bash
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/summary"
+```
+
+Response includes control/test totals and deltas for units, revenue, and margin.
+
+### Get timeseries data (for charts)
+
+```bash
+# All data grouped by date
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/timeseries"
+
+# Filter by store
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/timeseries?storeId={storeId}"
+
+# Filter by SKU
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/timeseries?skuId={skuId}"
+```
+
+### Get breakdown by dimension
+
+```bash
+# Breakdown by store
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/breakdown?by=STORE"
+
+# Breakdown by SKU
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/breakdown?by=SKU"
+
+# Breakdown by date
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/breakdown?by=DATE"
+
+# Breakdown by store, filtered to specific SKU
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/breakdown?by=STORE&skuId={skuId}"
+```
+
+### Export results as CSV
+
+```bash
+curl -u analyst:analyst123 \
+  "http://localhost:8080/api/simulation-runs/{runId}/export.csv" \
+  -o simulation-results.csv
+```
+
+CSV columns: `runId,experimentId,date,storeId,skuId,variant,basePrice,price,unitCost,units,revenue,margin`
 
 ## Contact
 

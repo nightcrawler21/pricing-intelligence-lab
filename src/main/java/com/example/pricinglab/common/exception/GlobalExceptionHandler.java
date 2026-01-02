@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -111,6 +112,21 @@ public class GlobalExceptionHandler {
         );
         problem.setTitle("Validation Error");
         problem.setProperty("errors", errors);
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        log.warn("Missing required parameter: {}", ex.getParameterName());
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.BAD_REQUEST,
+            "Missing required parameter: " + ex.getParameterName()
+        );
+        problem.setTitle("Missing Parameter");
+        problem.setProperty("parameterName", ex.getParameterName());
+        problem.setProperty("parameterType", ex.getParameterType());
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }
