@@ -81,10 +81,22 @@ public class SimulationResultDaily {
     private BigDecimal projectedRevenue;
 
     /**
-     * Projected gross margin.
+     * Projected gross margin (revenue - cost).
      */
     @Column(name = "projected_margin", nullable = false, precision = 15, scale = 2)
     private BigDecimal projectedMargin;
+
+    /**
+     * Unit cost used for margin calculation.
+     */
+    @Column(name = "unit_cost", precision = 12, scale = 2)
+    private BigDecimal unitCost;
+
+    /**
+     * Projected total cost (unitCost * projectedUnits).
+     */
+    @Column(name = "projected_cost", precision = 15, scale = 2)
+    private BigDecimal projectedCost;
 
     /**
      * Historical baseline units (from prior period or comparable).
@@ -198,6 +210,22 @@ public class SimulationResultDaily {
 
     public void setProjectedMargin(BigDecimal projectedMargin) {
         this.projectedMargin = projectedMargin;
+    }
+
+    public BigDecimal getUnitCost() {
+        return unitCost;
+    }
+
+    public void setUnitCost(BigDecimal unitCost) {
+        this.unitCost = unitCost;
+    }
+
+    public BigDecimal getProjectedCost() {
+        return projectedCost;
+    }
+
+    public void setProjectedCost(BigDecimal projectedCost) {
+        this.projectedCost = projectedCost;
     }
 
     public BigDecimal getBaselineUnits() {

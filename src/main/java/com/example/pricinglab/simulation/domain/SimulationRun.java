@@ -71,6 +71,12 @@ public class SimulationRun extends BaseAuditableEntity {
     @Column(name = "error_message", length = 2000)
     private String errorMessage;
 
+    /**
+     * Total number of days simulated (startDate to endDate inclusive).
+     */
+    @Column(name = "total_days_simulated")
+    private Integer totalDaysSimulated;
+
     // Summary metrics (populated after completion)
 
     /**
@@ -182,6 +188,14 @@ public class SimulationRun extends BaseAuditableEntity {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public Integer getTotalDaysSimulated() {
+        return totalDaysSimulated;
+    }
+
+    public void setTotalDaysSimulated(Integer totalDaysSimulated) {
+        this.totalDaysSimulated = totalDaysSimulated;
     }
 
     public BigDecimal getProjectedRevenueTest() {
