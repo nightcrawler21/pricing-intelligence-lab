@@ -162,6 +162,96 @@ For local development, the sample data loads automatically with Flyway. For prod
 2. Configure Flyway to skip it via `flyway.ignoreMigrationPatterns`
 3. Use your organization's data import process instead
 
+### Local Data Seeder (Story 2.8)
+
+When running with the `local` profile, an additional data seeder runs on startup to populate deterministic reference data:
+
+| Dataset | Count | Formula |
+|---------|-------|---------|
+| Stores | 5 | Fixed list (Bangkok, Rama 9, Chiang Mai, Phuket, Khon Kaen) |
+| SKUs | 10 | Fixed list (beverages, snacks, dairy, staples) |
+| Base Prices | 50 | `20 + (skuIdx × 3) + (storeIdx × 2)` THB |
+| SKU Costs | 10 | `(20 + skuIdx×3 + 4) × 0.6` THB |
+| Baseline Daily Sales | 1500 | `80 + (skuIdx × 5) + (dayOffset % 7) × 2` units/day |
+
+**Key Properties:**
+- **Profile-guarded**: Only runs with `-Dspring.profiles.active=local`
+- **Deterministic**: Same seed → same output every run (no randomness)
+- **Idempotent**: Safe to run multiple times (uses stable UUIDs for upsert)
+- **Isolated**: Does NOT run in test, dev, qa, or prod profiles
+
+**Seeded Data Identifiers:**
+- Stores: Codes prefixed with `SEED-STR-`
+- SKUs: Codes prefixed with `SEED-SKU-`
+
+#### Running with Local Profile
+
+```bash
+# Run the application with local profile (seeds data automatically)
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+#### Verifying Seeded Data
+
+After starting with the local profile, verify the seeded data using the H2 console or SQL queries:
+
+```bash
+# Access H2 Console at http://localhost:8080/h2-console
+# JDBC URL: jdbc:h2:mem:pricing_lab
+# Username: sa, Password: (empty)
+```
+
+**SQL Verification Queries:**
+
+```sql
+-- Count seeded stores (expect 5)
+SELECT COUNT(*) FROM stores WHERE store_code LIKE 'SEED-%';
+
+-- Count seeded SKUs (expect 10)
+SELECT COUNT(*) FROM skus WHERE sku_code LIKE 'SEED-%';
+
+-- Count base prices (expect 50 = 5 stores × 10 SKUs)
+SELECT COUNT(*) FROM base_prices bp
+JOIN skus s ON bp.sku_id = s.id
+WHERE s.sku_code LIKE 'SEED-%';
+
+-- Count SKU costs (expect 10)
+SELECT COUNT(*) FROM sku_costs sc
+JOIN skus s ON sc.sku_id = s.id
+WHERE s.sku_code LIKE 'SEED-%';
+
+-- Count baseline daily sales (expect 1500 = 5 × 10 × 30)
+SELECT COUNT(*) FROM baseline_daily_sales bds
+JOIN skus s ON bds.sku_id = s.id
+WHERE s.sku_code LIKE 'SEED-%';
+
+-- Verify price formula: Store 0, SKU 0 should be 20.00
+SELECT st.store_code, sk.sku_code, bp.price
+FROM base_prices bp
+JOIN stores st ON bp.store_id = st.id
+JOIN skus sk ON bp.sku_id = sk.id
+WHERE st.store_code = 'SEED-STR-001'
+AND sk.sku_code = 'SEED-SKU-001';
+
+-- Verify weekly pattern in baseline sales
+SELECT bds.sales_date, bds.units_sold,
+       EXTRACT(DOW FROM bds.sales_date) as day_of_week
+FROM baseline_daily_sales bds
+JOIN stores st ON bds.store_id = st.id
+JOIN skus sk ON bds.sku_id = sk.id
+WHERE st.store_code = 'SEED-STR-001'
+AND sk.sku_code = 'SEED-SKU-001'
+ORDER BY bds.sales_date
+LIMIT 14;
+```
+
+**Expected Price Examples:**
+| Store Index | SKU Index | Expected Price |
+|-------------|-----------|----------------|
+| 0 | 0 | 20.00 THB |
+| 0 | 5 | 35.00 THB |
+| 4 | 9 | 55.00 THB |
+
 ## API Overview
 
 ### Experiments

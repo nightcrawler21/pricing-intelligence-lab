@@ -52,4 +52,11 @@ public interface BasePriceRepository extends JpaRepository<BasePrice, UUID> {
         @Param("skuId") UUID skuId,
         @Param("date") LocalDate date
     );
+
+    /**
+     * Count base prices for SKUs with code starting with given prefix.
+     * Used for testing seeded data isolation.
+     */
+    @Query("SELECT COUNT(bp) FROM BasePrice bp WHERE bp.sku.skuCode LIKE CONCAT(:prefix, '%')")
+    long countBySkuCodeStartingWith(@Param("prefix") String prefix);
 }
