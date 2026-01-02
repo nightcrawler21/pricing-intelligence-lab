@@ -37,4 +37,19 @@ public interface BasePriceRepository extends JpaRepository<BasePrice, UUID> {
         @Param("storeId") UUID storeId,
         @Param("date") LocalDate date
     );
+
+    /**
+     * Find all effective base prices for a SKU across all stores on a given date.
+     * Used for guardrail validation to find the minimum base price (most conservative).
+     */
+    @Query("""
+        SELECT bp FROM BasePrice bp
+        WHERE bp.sku.id = :skuId
+        AND bp.effectiveDate <= :date
+        AND (bp.endDate IS NULL OR bp.endDate >= :date)
+        """)
+    List<BasePrice> findAllEffectivePricesForSku(
+        @Param("skuId") UUID skuId,
+        @Param("date") LocalDate date
+    );
 }

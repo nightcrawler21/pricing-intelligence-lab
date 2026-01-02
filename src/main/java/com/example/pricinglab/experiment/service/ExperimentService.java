@@ -30,14 +30,17 @@ public class ExperimentService {
 
     private final ExperimentRepository experimentRepository;
     private final ExperimentLifecycleValidator lifecycleValidator;
+    private final ExperimentGuardrailsService guardrailsService;
     private final AuditService auditService;
 
     public ExperimentService(
             ExperimentRepository experimentRepository,
             ExperimentLifecycleValidator lifecycleValidator,
+            ExperimentGuardrailsService guardrailsService,
             AuditService auditService) {
         this.experimentRepository = experimentRepository;
         this.lifecycleValidator = lifecycleValidator;
+        this.guardrailsService = guardrailsService;
         this.auditService = auditService;
     }
 
@@ -117,8 +120,9 @@ public class ExperimentService {
 
         // TODO: Validate experiment has required scope (at least one store-SKU pair)
         // TODO: Validate experiment has at least one lever defined
-        // TODO: Validate experiment has guardrails configured
-        // TODO: Validate all levers comply with guardrails
+
+        // Validate guardrails exist and are valid (including lever consistency if lever exists)
+        guardrailsService.validateForSubmit(experiment);
 
         ExperimentStatus previousStatus = experiment.getStatus();
         experiment.setStatus(ExperimentStatus.PENDING_APPROVAL);

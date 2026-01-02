@@ -14,4 +14,14 @@ import java.util.UUID;
 public interface ExperimentGuardrailsRepository extends JpaRepository<ExperimentGuardrails, UUID> {
 
     Optional<ExperimentGuardrails> findByExperimentId(UUID experimentId);
+
+    /**
+     * Checks if guardrails exist for the given experiment.
+     */
+    boolean existsByExperimentId(UUID experimentId);
+
+    /**
+     * Deletes guardrails for the given experiment.
+     */
+    void deleteByExperimentId(UUID experimentId);
 }
