@@ -21,13 +21,26 @@ import java.util.UUID;
 /**
  * Defines a pricing lever (action) to be applied in an experiment.
  *
- * A lever specifies what pricing change will be applied to a SKU
- * in TEST group stores during the experiment period.
+ * <p>A lever specifies what pricing change will be applied to a SKU
+ * in TEST group stores during the experiment period.</p>
  *
- * Examples:
- * - 5% discount on SKU "Coca-Cola 1.5L"
- * - Fixed price of 99 THB for SKU "Lactasoy Soy Milk"
- * - -10 THB off SKU "Lay's Chips 75g"
+ * <h2>v0 Lever SKU Semantics</h2>
+ * <p>In v0, the lever SKU serves as a <b>validation anchor only</b>:</p>
+ * <ul>
+ *   <li>The SKU must be present in the experiment scope (enforced at configuration time)</li>
+ *   <li>Guardrail validation uses this SKU's base prices for consistency checks</li>
+ *   <li>However, the PRICE_DISCOUNT lever applies <b>uniformly to ALL scoped SKUs</b>
+ *       during simulation, not just the anchor SKU</li>
+ * </ul>
+ * <p>Future versions may support SKU-specific lever targeting. For v0, this design
+ * simplifies the simulation model while maintaining guardrail safety.</p>
+ *
+ * <h2>Examples</h2>
+ * <ul>
+ *   <li>5% discount on SKU "Coca-Cola 1.5L"</li>
+ *   <li>Fixed price of 99 THB for SKU "Lactasoy Soy Milk"</li>
+ *   <li>-10 THB off SKU "Lay's Chips 75g"</li>
+ * </ul>
  */
 @Entity
 @Table(name = "experiment_levers", indexes = {

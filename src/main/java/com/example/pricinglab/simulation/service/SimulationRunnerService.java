@@ -192,6 +192,11 @@ public class SimulationRunnerService {
                     totalDays, startDate, endDate, scopes.size());
 
             // 5. Generate daily results
+            //
+            // v0 LEVER APPLICATION NOTE:
+            // The lever SKU is used as a validation anchor (must be in scope, used for guardrail checks),
+            // but the PRICE_DISCOUNT is applied uniformly to ALL scoped store-SKU pairs below.
+            // This is intentional for v0 simplicity. Future versions may support SKU-specific targeting.
             BigDecimal totalRevenueTest = BigDecimal.ZERO;
             BigDecimal totalRevenueControl = BigDecimal.ZERO;
             BigDecimal totalUnitsTest = BigDecimal.ZERO;

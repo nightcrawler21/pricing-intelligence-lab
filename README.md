@@ -35,6 +35,27 @@ The following are explicitly out of scope for the initial version:
 
 For a detailed list of intentionally deferred APIs (scope management, lever configuration, simulation results), see [docs/TODO.md](docs/TODO.md).
 
+## v0 Limitations & Intentional Tradeoffs
+
+The following are **deliberate design constraints** for v0. They are not bugs — they are intentional simplifications to ensure correctness before adding complexity.
+
+| Limitation | Explanation |
+|------------|-------------|
+| **Single lever per experiment** | v0 supports exactly one `PRICE_DISCOUNT` lever per experiment. Multi-lever and other lever types (TARGET_PRICE, ABSOLUTE_CHANGE) are deferred to v1. |
+| **Lever applies uniformly across scope** | The lever SKU is a validation anchor only. The discount applies to ALL store-SKU pairs in scope, not just the anchor SKU. |
+| **Guardrails validated at submit time only** | Guardrail consistency checks use current effective base prices (`LocalDate.now()`) at submission. They do NOT re-validate at simulation time or use future-dated prices. |
+| **Simulation is synchronous** | Simulations run in a single transaction. No async processing, no background jobs. This ensures determinism and simplicity. |
+| **Fixed baseline units (100/day)** | v0 uses a fixed 100 units/day baseline for all store-SKU pairs. Historical baseline loading from `baseline_daily_sales` is deferred. |
+| **Fixed elasticity (1.5x)** | Price elasticity is hardcoded at 1.5x (10% price reduction → 15% unit increase). Dynamic elasticity models are deferred. |
+| **Terminal states are final** | Experiments in `COMPLETED`, `FAILED`, or `REJECTED` status cannot transition further. To retry, create a new experiment. |
+| **No base price pre-flight check** | Submit validation does not verify that base prices exist for all scope entries. Missing prices will fail at simulation runtime. |
+
+### Why These Tradeoffs?
+
+1. **Correctness over flexibility**: It's better to have a simple system that works correctly than a flexible system with edge cases.
+2. **Determinism over realism**: Fixed baselines and elasticity ensure identical inputs always produce identical outputs — critical for debugging and auditing.
+3. **Explainability over sophistication**: Simple formulas can be verified by hand. This builds trust before adding ML/optimization.
+
 ## Architecture Overview
 
 ```
