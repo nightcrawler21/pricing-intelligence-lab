@@ -7,7 +7,9 @@ import com.example.pricinglab.common.exception.InvalidExperimentStateException;
 import com.example.pricinglab.common.exception.ResourceNotFoundException;
 import com.example.pricinglab.experiment.domain.Experiment;
 import com.example.pricinglab.experiment.dto.CreateExperimentRequest;
+import com.example.pricinglab.experiment.repository.ExperimentLeverRepository;
 import com.example.pricinglab.experiment.repository.ExperimentRepository;
+import com.example.pricinglab.experiment.repository.ExperimentScopeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -29,16 +31,22 @@ public class ExperimentService {
     private static final Logger log = LoggerFactory.getLogger(ExperimentService.class);
 
     private final ExperimentRepository experimentRepository;
+    private final ExperimentScopeRepository scopeRepository;
+    private final ExperimentLeverRepository leverRepository;
     private final ExperimentLifecycleValidator lifecycleValidator;
     private final ExperimentGuardrailsService guardrailsService;
     private final AuditService auditService;
 
     public ExperimentService(
             ExperimentRepository experimentRepository,
+            ExperimentScopeRepository scopeRepository,
+            ExperimentLeverRepository leverRepository,
             ExperimentLifecycleValidator lifecycleValidator,
             ExperimentGuardrailsService guardrailsService,
             AuditService auditService) {
         this.experimentRepository = experimentRepository;
+        this.scopeRepository = scopeRepository;
+        this.leverRepository = leverRepository;
         this.lifecycleValidator = lifecycleValidator;
         this.guardrailsService = guardrailsService;
         this.auditService = auditService;
@@ -109,21 +117,39 @@ public class ExperimentService {
     /**
      * Submits a DRAFT experiment for approval.
      *
+     * <p>Performs comprehensive validation before allowing state transition:</p>
+     * <ol>
+     *   <li>Experiment must be in DRAFT status</li>
+     *   <li>Dates must be valid (startDate and endDate set, endDate > startDate)</li>
+     *   <li>At least one scope entry must exist</li>
+     *   <li>A pricing lever must be configured</li>
+     *   <li>Guardrails must be configured and valid</li>
+     * </ol>
+     *
      * @param id the experiment ID
      * @return the updated experiment
      * @throws InvalidExperimentStateException if experiment is not in DRAFT status
+     * @throws IllegalArgumentException if any validation fails
      */
     public Experiment submitForApproval(UUID id) {
         Experiment experiment = getExperiment(id);
 
+        // A. Validate experiment is in DRAFT status
         lifecycleValidator.validateCanSubmit(experiment);
 
-        // TODO: Validate experiment has required scope (at least one store-SKU pair)
-        // TODO: Validate experiment has at least one lever defined
+        // B. Validate dates
+        validateDates(experiment);
 
-        // Validate guardrails exist and are valid (including lever consistency if lever exists)
+        // C. Validate scope exists (at least one store-SKU pair)
+        validateScopeExists(experiment.getId());
+
+        // D. Validate lever exists
+        validateLeverExists(experiment.getId());
+
+        // E. Validate guardrails exist and are valid (including lever consistency)
         guardrailsService.validateForSubmit(experiment);
 
+        // All validations passed - transition state
         ExperimentStatus previousStatus = experiment.getStatus();
         experiment.setStatus(ExperimentStatus.PENDING_APPROVAL);
         Experiment saved = experimentRepository.save(experiment);
@@ -139,6 +165,45 @@ public class ExperimentService {
         );
 
         return saved;
+    }
+
+    /**
+     * Validates that experiment dates are properly set and endDate > startDate.
+     */
+    private void validateDates(Experiment experiment) {
+        if (experiment.getStartDate() == null) {
+            throw new IllegalArgumentException(
+                    "Cannot submit experiment: startDate is required.");
+        }
+        if (experiment.getEndDate() == null) {
+            throw new IllegalArgumentException(
+                    "Cannot submit experiment: endDate is required.");
+        }
+        if (!experiment.getEndDate().isAfter(experiment.getStartDate())) {
+            throw new IllegalArgumentException(
+                    "Cannot submit experiment: endDate (" + experiment.getEndDate() +
+                    ") must be after startDate (" + experiment.getStartDate() + ").");
+        }
+    }
+
+    /**
+     * Validates that at least one scope entry exists for the experiment.
+     */
+    private void validateScopeExists(UUID experimentId) {
+        if (!scopeRepository.existsByExperimentId(experimentId)) {
+            throw new IllegalArgumentException(
+                    "Cannot submit experiment without scope entries. Add at least one store+SKU pair.");
+        }
+    }
+
+    /**
+     * Validates that a pricing lever is configured for the experiment.
+     */
+    private void validateLeverExists(UUID experimentId) {
+        if (!leverRepository.existsByExperimentId(experimentId)) {
+            throw new IllegalArgumentException(
+                    "Cannot submit experiment without a pricing lever configured.");
+        }
     }
 
     /**

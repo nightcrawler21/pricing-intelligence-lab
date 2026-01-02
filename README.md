@@ -182,6 +182,18 @@ DRAFT → PENDING_APPROVAL → APPROVED → RUNNING → COMPLETED
                          ↘ REJECTED
 ```
 
+### Submit Requirements
+
+Before an experiment can be submitted for approval, it must pass all validation checks:
+
+1. **Status**: Experiment must be in `DRAFT` status
+2. **Dates**: `endDate` must be after `startDate` (both required)
+3. **Scope**: At least one store+SKU pair must be defined
+4. **Lever**: A pricing lever must be configured
+5. **Guardrails**: Guardrails must be configured and valid
+
+Validation failures return HTTP 400 with human-readable error messages.
+
 ## Security Model
 
 - **ANALYST**: Can create experiments, view all data, run simulations
