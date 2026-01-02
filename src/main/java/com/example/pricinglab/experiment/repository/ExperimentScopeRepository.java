@@ -50,4 +50,9 @@ public interface ExperimentScopeRepository extends JpaRepository<ExperimentScope
      * Counts scope entries for an experiment.
      */
     int countByExperimentId(UUID experimentId);
+
+    /**
+     * Checks if a SKU is included in the experiment scope (any store).
+     */
+    boolean existsByExperimentIdAndSkuId(UUID experimentId, UUID skuId);
 }

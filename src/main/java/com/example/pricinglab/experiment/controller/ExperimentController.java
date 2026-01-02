@@ -6,9 +6,12 @@ import com.example.pricinglab.experiment.dto.CreateExperimentRequest;
 import com.example.pricinglab.experiment.dto.ExperimentDetailResponse;
 import com.example.pricinglab.experiment.dto.ExperimentMapper;
 import com.example.pricinglab.experiment.dto.ExperimentResponse;
+import com.example.pricinglab.experiment.dto.LeverRequest;
+import com.example.pricinglab.experiment.dto.LeverResponse;
 import com.example.pricinglab.experiment.dto.ModifyScopeRequest;
 import com.example.pricinglab.experiment.dto.ScopeListResponse;
 import com.example.pricinglab.experiment.service.ExperimentApprovalService;
+import com.example.pricinglab.experiment.service.ExperimentLeverService;
 import com.example.pricinglab.experiment.service.ExperimentScopeService;
 import com.example.pricinglab.experiment.service.ExperimentService;
 import com.example.pricinglab.simulation.service.SimulationService;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,6 +54,7 @@ public class ExperimentController {
     private final ExperimentService experimentService;
     private final ExperimentApprovalService approvalService;
     private final ExperimentScopeService scopeService;
+    private final ExperimentLeverService leverService;
     private final SimulationService simulationService;
     private final ExperimentMapper mapper;
 
@@ -57,12 +62,14 @@ public class ExperimentController {
         ExperimentService experimentService,
         ExperimentApprovalService approvalService,
         ExperimentScopeService scopeService,
+        ExperimentLeverService leverService,
         SimulationService simulationService,
         ExperimentMapper mapper
     ) {
         this.experimentService = experimentService;
         this.approvalService = approvalService;
         this.scopeService = scopeService;
+        this.leverService = leverService;
         this.simulationService = simulationService;
         this.mapper = mapper;
     }
@@ -195,5 +202,43 @@ public class ExperimentController {
         log.info("Removing {} scope entries from experiment {}", request.entries().size(), id);
         ScopeListResponse response = scopeService.removeScopeEntries(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    // --- Lever Management Endpoints ---
+
+    @PutMapping("/{id}/lever")
+    @Operation(summary = "Configure experiment lever",
+        description = "Sets or replaces the pricing lever for an experiment. Only allowed when experiment is in DRAFT status. " +
+                      "v0 supports only PRICE_DISCOUNT lever type with discountPercentage between 0 (exclusive) and 50 (inclusive). " +
+                      "The SKU must already be present in the experiment scope.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lever configured successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request: wrong lever type, invalid discount range, SKU not in scope, or experiment not in DRAFT"),
+        @ApiResponse(responseCode = "404", description = "Experiment or SKU not found")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<LeverResponse> configureLever(
+        @PathVariable UUID id,
+        @Valid @RequestBody LeverRequest request
+    ) {
+        log.info("Configuring lever for experiment {}: type={}, skuId={}, discount={}%",
+                id, request.type(), request.skuId(), request.discountPercentage());
+        LeverResponse response = leverService.configureLever(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/lever")
+    @Operation(summary = "Remove experiment lever",
+        description = "Removes the pricing lever from an experiment. Only allowed when experiment is in DRAFT status.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Lever removed successfully"),
+        @ApiResponse(responseCode = "400", description = "Experiment not in DRAFT status"),
+        @ApiResponse(responseCode = "404", description = "Experiment not found or no lever exists")
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYST')")
+    public ResponseEntity<Void> removeLever(@PathVariable UUID id) {
+        log.info("Removing lever from experiment {}", id);
+        leverService.removeLever(id);
+        return ResponseEntity.noContent().build();
     }
 }

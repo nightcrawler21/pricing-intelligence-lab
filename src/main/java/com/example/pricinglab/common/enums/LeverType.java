@@ -8,6 +8,13 @@ package com.example.pricinglab.common.enums;
 public enum LeverType {
 
     /**
+     * Price discount as a percentage off the base price.
+     * Value represents discount percentage (e.g., 10.0 = 10% off).
+     * v0 lever type - the only supported type initially.
+     */
+    PRICE_DISCOUNT,
+
+    /**
      * Percentage-based price adjustment.
      * Example: -5% (discount) or +10% (markup)
      */

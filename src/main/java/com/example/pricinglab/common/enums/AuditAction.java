@@ -25,5 +25,9 @@ public enum AuditAction {
 
     // Scope management
     EXPERIMENT_SCOPE_ADDED,
-    EXPERIMENT_SCOPE_REMOVED
+    EXPERIMENT_SCOPE_REMOVED,
+
+    // Lever management
+    EXPERIMENT_LEVER_SET,
+    EXPERIMENT_LEVER_REMOVED
 }
