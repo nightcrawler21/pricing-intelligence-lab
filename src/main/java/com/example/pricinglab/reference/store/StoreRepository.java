@@ -22,4 +22,10 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     List<Store> findByActiveTrue();
 
     List<Store> findByIdIn(List<UUID> ids);
+
+    /**
+     * Count stores with code starting with given prefix.
+     * Used for testing seeded data isolation.
+     */
+    long countByStoreCodeStartingWith(String prefix);
 }

@@ -33,4 +33,11 @@ public interface SkuCostRepository extends JpaRepository<SkuCost, UUID> {
         @Param("skuId") UUID skuId,
         @Param("date") LocalDate date
     );
+
+    /**
+     * Count SKU costs for SKUs with code starting with given prefix.
+     * Used for testing seeded data isolation.
+     */
+    @Query("SELECT COUNT(sc) FROM SkuCost sc WHERE sc.sku.skuCode LIKE CONCAT(:prefix, '%')")
+    long countBySkuCodeStartingWith(@Param("prefix") String prefix);
 }

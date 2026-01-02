@@ -24,4 +24,10 @@ public interface SkuRepository extends JpaRepository<Sku, UUID> {
     List<Sku> findByActiveTrue();
 
     List<Sku> findByIdIn(List<UUID> ids);
+
+    /**
+     * Count SKUs with code starting with given prefix.
+     * Used for testing seeded data isolation.
+     */
+    long countBySkuCodeStartingWith(String prefix);
 }
