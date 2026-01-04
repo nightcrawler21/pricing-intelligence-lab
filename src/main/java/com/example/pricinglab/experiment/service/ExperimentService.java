@@ -6,6 +6,7 @@ import com.example.pricinglab.common.enums.ExperimentStatus;
 import com.example.pricinglab.common.exception.InvalidExperimentStateException;
 import com.example.pricinglab.common.exception.ResourceNotFoundException;
 import com.example.pricinglab.experiment.domain.Experiment;
+import com.example.pricinglab.experiment.domain.ExperimentGuardrails;
 import com.example.pricinglab.experiment.dto.CreateExperimentRequest;
 import com.example.pricinglab.experiment.repository.ExperimentLeverRepository;
 import com.example.pricinglab.experiment.repository.ExperimentRepository;
@@ -163,6 +164,15 @@ public class ExperimentService {
                 AuditAction.EXPERIMENT_SUBMITTED,
                 String.format("Status changed from %s to %s", previousStatus, ExperimentStatus.PENDING_APPROVAL)
         );
+
+        // Initialize lazy collections before returning (needed for DTO mapping outside transaction)
+        saved.getScopes().size();
+        saved.getLevers().size();
+        // Force load guardrails (may be null)
+        ExperimentGuardrails g = saved.getGuardrails();
+        if (g != null) {
+            g.getId(); // touch to ensure proxy is initialized
+        }
 
         return saved;
     }

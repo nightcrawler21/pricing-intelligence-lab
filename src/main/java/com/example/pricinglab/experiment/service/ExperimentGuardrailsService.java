@@ -29,6 +29,8 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import jakarta.persistence.EntityManager;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,6 +76,7 @@ public class ExperimentGuardrailsService {
     private final BasePriceRepository basePriceRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final EntityManager entityManager;
 
     public ExperimentGuardrailsService(
             ExperimentRepository experimentRepository,
@@ -81,13 +84,15 @@ public class ExperimentGuardrailsService {
             ExperimentLeverRepository leverRepository,
             BasePriceRepository basePriceRepository,
             AuditService auditService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            EntityManager entityManager) {
         this.experimentRepository = experimentRepository;
         this.guardrailsRepository = guardrailsRepository;
         this.leverRepository = leverRepository;
         this.basePriceRepository = basePriceRepository;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
+        this.entityManager = entityManager;
     }
 
     /**
@@ -120,15 +125,26 @@ public class ExperimentGuardrailsService {
         }
 
         // Create or update guardrails
-        ExperimentGuardrails guardrails = guardrailsRepository.findByExperimentId(experimentId)
-                .orElse(new ExperimentGuardrails(experimentId));
+        // Note: @MapsId requires special handling - use EntityManager for new entities
+        Optional<ExperimentGuardrails> existingGuardrails = guardrailsRepository.findByExperimentId(experimentId);
 
-        guardrails.setExperiment(experiment);
-        guardrails.setPriceFloor(request.priceFloor());
-        guardrails.setPriceCeiling(request.priceCeiling());
-        guardrails.setMaxChangePercent(request.maxChangePercent());
-
-        guardrails = guardrailsRepository.save(guardrails);
+        ExperimentGuardrails guardrails;
+        if (existingGuardrails.isPresent()) {
+            // Update existing
+            guardrails = existingGuardrails.get();
+            guardrails.setPriceFloor(request.priceFloor());
+            guardrails.setPriceCeiling(request.priceCeiling());
+            guardrails.setMaxChangePercent(request.maxChangePercent());
+            guardrails = guardrailsRepository.save(guardrails);
+        } else {
+            // Create new - use EntityManager.persist() for @MapsId entities
+            guardrails = new ExperimentGuardrails(experiment);
+            guardrails.setPriceFloor(request.priceFloor());
+            guardrails.setPriceCeiling(request.priceCeiling());
+            guardrails.setMaxChangePercent(request.maxChangePercent());
+            entityManager.persist(guardrails);
+            entityManager.flush();
+        }
 
         log.info("Configured guardrails for experiment {}", experimentId);
 
