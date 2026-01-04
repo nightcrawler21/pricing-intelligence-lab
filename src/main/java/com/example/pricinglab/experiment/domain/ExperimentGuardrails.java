@@ -114,8 +114,27 @@ public class ExperimentGuardrails extends BaseAuditableEntity {
         // JPA
     }
 
+    /**
+     * Creates guardrails for an experiment.
+     * Note: When using @MapsId, the ID is derived from the experiment relationship.
+     * Call setExperiment() before persisting to ensure the ID is properly set.
+     *
+     * @param experimentId the experiment ID (sets the ID explicitly for cases where
+     *                     the experiment entity is not yet available)
+     */
     public ExperimentGuardrails(UUID experimentId) {
         this.id = experimentId;
+    }
+
+    /**
+     * Creates guardrails linked to an experiment.
+     * Preferred constructor when the experiment entity is available.
+     *
+     * @param experiment the experiment to attach guardrails to
+     */
+    public ExperimentGuardrails(Experiment experiment) {
+        this.experiment = experiment;
+        this.id = experiment.getId();
     }
 
     // Getters and Setters

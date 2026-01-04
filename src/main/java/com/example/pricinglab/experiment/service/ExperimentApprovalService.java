@@ -5,6 +5,7 @@ import com.example.pricinglab.common.enums.AuditAction;
 import com.example.pricinglab.common.enums.ExperimentStatus;
 import com.example.pricinglab.common.exception.ResourceNotFoundException;
 import com.example.pricinglab.experiment.domain.Experiment;
+import com.example.pricinglab.experiment.domain.ExperimentGuardrails;
 import com.example.pricinglab.experiment.dto.ApprovalRequest;
 import com.example.pricinglab.experiment.repository.ExperimentRepository;
 import org.slf4j.Logger;
@@ -78,6 +79,9 @@ public class ExperimentApprovalService {
                         approver, previousStatus, ExperimentStatus.APPROVED)
         );
 
+        // Initialize lazy collections before returning (needed for DTO mapping outside transaction)
+        initializeLazyCollections(saved);
+
         return saved;
     }
 
@@ -115,6 +119,9 @@ public class ExperimentApprovalService {
                         approver, request.rejectionReason(), previousStatus, ExperimentStatus.REJECTED)
         );
 
+        // Initialize lazy collections before returning (needed for DTO mapping outside transaction)
+        initializeLazyCollections(saved);
+
         return saved;
     }
 
@@ -143,5 +150,17 @@ public class ExperimentApprovalService {
     @Transactional(readOnly = true)
     public List<Experiment> listPendingApprovals() {
         return experimentRepository.findByStatus(ExperimentStatus.PENDING_APPROVAL);
+    }
+
+    /**
+     * Initialize lazy collections to avoid LazyInitializationException when mapping to DTO.
+     */
+    private void initializeLazyCollections(Experiment experiment) {
+        experiment.getScopes().size();
+        experiment.getLevers().size();
+        ExperimentGuardrails g = experiment.getGuardrails();
+        if (g != null) {
+            g.getId();
+        }
     }
 }
